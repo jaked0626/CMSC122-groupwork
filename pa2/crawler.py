@@ -20,7 +20,28 @@ INDEX_IGNORE = set(['a', 'also', 'an', 'and', 'are', 'as', 'at', 'be',
                     'yet'])
 
 
-### YOUR FUNCTIONS HERE
+def make_soup(url):
+    '''
+    Given a url, return the soup object of this url
+
+    Input: url (a string)
+    Output: the soup object
+    '''
+    request = util.get_request(url)
+    if request != None:
+        text = util.read_request(request)
+        soup = bs4.BeautifulSoup(text, 'html5lib')
+    return soup
+
+def linked_urls(starting_url):
+    links = []
+    soup = make_soup(starting_url)
+    for link in soup.find_all('a'):
+        relative_url = link['href']
+        linked_url = util.convert_if_relative_url(starting_url, relative_url)
+        filtered_link = util.remove_fragment(linked_url)
+        links.append(filtered_link)
+    return links
 
 def go(num_pages_to_crawl, course_map_filename, index_filename):
     '''
