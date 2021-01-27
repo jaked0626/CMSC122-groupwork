@@ -60,7 +60,7 @@ def code_to_identifier(code, course_map_filename="course_map.json"):
 # dict(map(lambda x: (x[0], list(map(code_to_identifier, x[1]))), dic.items()))
 
 
-def find_words(text): #maybe add dic parameter and coursetitle parameter(list) and integrate indexing operation
+def register_words(dic, text, coursetitles): #maybe add dic parameter and coursetitle parameter(list) and integrate indexing operation
     '''
     Given a body of text, returns a list of valid words in text.
     Thinking of adding a dictionary parameter and coursetitle parameter 
@@ -69,13 +69,17 @@ def find_words(text): #maybe add dic parameter and coursetitle parameter(list) a
     so we can factor out a bulk of the coding necessary to differentiate sequences
     and individual courses. 
     '''
-    valid_words = []
     matches = re.findall("[a-zA-Z0-9]+", text)
     for word in matches:
         if word.lower() not in INDEX_IGNORE:
-            valid_words.append(word.lower())
+            if dic.get(word.lower()):
+                for course in coursetitles:
+                    if course not in dic[word.lower()]:
+                        dic[word.lower()].append(course)
+            else:
+                dic[word.lower()] = coursetitles
 
-    return valid_words
+    return dic
 
 
 
@@ -89,20 +93,23 @@ def crawl_soup(soup, index={}):
     for tag in main_tags:
         sequences = util.find_sequence(tag)
         if sequences:  # if courseblock main is a sequence
-            pass
+            course_code = [find_course_names(subseq) for subseq in sequences]
+            for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
+                index = register_words(index, ptag.text, [course_code])
+            for subseq in sequences:
+                index = crawl_soup(subseq, index)
+            
         else:  # if it is not a sequence
-            for ptag in tag.find_all("p"):
-                if ptag["class"] == ["courseblocktitle"]:
-                    course_code = re.search("[A-Z]{4}\xa0[0-9]{5}", ptag.text).group()  # Getting \xa0 as space
-                elif ptag["class"] == ["courseblockdesc"]:
-                    for word in find_words(ptag.text):
-                        if index.get(word):
-                            if course_code not in index[word]:
-                                index[word].append(course_code)
-                        else:
-                            index[word] = [course_code]
+            course_code = find_course_names(tag)
+            for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
+                index = register_words(index, ptag.text, [course_code])
                     
     return index
+
+def find_course_names(courseblockmaintag):
+    title_tag = courseblockmaintag.find_all("p", class_="courseblocktitle")[0]
+    course_code = re.search("[A-Z]{4}\xa0[0-9]{5}", title_tag.text).group()
+    return course_code
 
 
 
