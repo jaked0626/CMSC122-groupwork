@@ -56,7 +56,7 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     Outputs:
         CSV file of the index
     '''
-
+    
     starting_url = ("http://www.classes.cs.uchicago.edu/archive/2015/winter"
                     "/12200-1/new.collegecatalog.uchicago.edu/index.html")
     limiting_domain = "classes.cs.uchicago.edu"
