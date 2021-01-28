@@ -161,7 +161,7 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     links_queue = queue.Queue()
     index = {}
     while num_pages < num_pages_to_crawl:
-        if util.is_url_ok_to_follow(starting_url, limiting_domain): # does limiting_domain need updating?
+        if util.is_url_ok_to_follow(starting_url, limiting_domain) and starting_url not in visited_urls: # does limiting_domain need updating?
             page, request = make_soup(starting_url)
             links_queue = linked_urls(util.get_request_url(request), links_queue)
             num_pages += 1
