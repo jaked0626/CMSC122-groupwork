@@ -84,20 +84,22 @@ def register_words(dic, text, coursetitles): #maybe add dic parameter and course
 
 
 def crawl_soup(soup, index={}):
-    """
+    '''
     Goes through soup object (one internet page) and indexes words found
     in that object. 
     Returns dictionary
-    """
+    '''
     main_tags = soup.find_all("div", class_="courseblock main")
     for tag in main_tags:
         sequences = util.find_sequence(tag)
         if sequences:  # if courseblock main is a sequence
             course_code = [find_course_names(subseq) for subseq in sequences]
             for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                index = register_words(index, ptag.text, [course_code])
+                index = register_words(index, ptag.text, course_code)
             for subseq in sequences:
-                index = crawl_soup(subseq, index)
+                course_code = find_course_names(subseq)
+                for ptag in subseq.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
+                    index = register_words(index, ptag.text, [course_code])
             
         else:  # if it is not a sequence
             course_code = find_course_names(tag)
@@ -106,10 +108,30 @@ def crawl_soup(soup, index={}):
                     
     return index
 
+'''
+checking function for crawl_soup:
+lst = [] 
+for key, value in dic.items():
+    course_lst = []
+    if key not in lst:
+        lst.append(key)
+    else:
+        print("repitition in keys!")
+    for course in value:
+        if course is list:
+            print("oh no, you have a list of courses registered as one course")
+        if course not in course_lst:
+            course_lst.append(course)
+        else:
+            print("repitition found in values!")
+'''
+
 def find_course_names(courseblockmaintag):
     title_tag = courseblockmaintag.find_all("p", class_="courseblocktitle")[0]
     course_code = re.search("[A-Z]{4}\xa0[0-9]{5}", title_tag.text).group()
     return course_code
+
+# Later on think of way to integrate course_to_identifier in the above function
 
 
 
