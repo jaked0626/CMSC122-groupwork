@@ -179,15 +179,22 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
             break
 
         starting_url = links_queue.get()
+    i = {}
     
-    with open(index_filename, mode="w") as csvfile:
-        csv_writer = csv.writer(csvfile, delimiter = ",", quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+
+    with open(str(index_filename) + '.csv', mode="w") as csvfile:
+        csv_writer = csv.writer(csvfile, delimiter = "|", quotechar = '"', quoting = csv.QUOTE_MINIMAL)
         for key, value_lst in index.items():
             value_lst = code_to_identifier(value_lst, course_map_filename)
             for value in value_lst:
-                csv_writer.writerow("{}|{}".format(value, key))
+                csv_writer.writerow([value, key])
+    
+    #with open(str(index_filename) + '.csv') as csvfile:
+        #reader = csv.reader(csvfile)
+        #mydict = dict(reader)
+    
 
-    return index_filename
+    return index
 
 
 if __name__ == "__main__":
