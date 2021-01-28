@@ -34,9 +34,9 @@ def make_soup(url):
     return soup, request
 
 
-def linked_urls(starting_url, queue=queue.Queue()):
+def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
     links = queue
-    soup, _ = make_soup(starting_url)
+    #soup, _ = make_soup(starting_url)
     for link in soup.find_all('a'):
         if link.has_attr("href"):  # href raising key error
             relative_url = link['href']
@@ -157,13 +157,13 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     limiting_domain = "classes.cs.uchicago.edu"
 
     visited_urls = []
-    num_pages = 0
+    num_pages = 1
     links_queue = queue.Queue()
     index = {}
     while num_pages < num_pages_to_crawl:
         if util.is_url_ok_to_follow(starting_url, limiting_domain) and starting_url not in visited_urls: # does limiting_domain need updating?
             page, request = make_soup(starting_url)
-            links_queue = linked_urls(util.get_request_url(request), links_queue)
+            links_queue = linked_urls(page, util.get_request_url(request), links_queue)
             num_pages += 1
             visited_urls.append(starting_url)
             index = crawl_soup(page)
@@ -173,8 +173,6 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
         starting_url = links_queue.get()
 
     return index, visited_urls
-
-    # YOUR CODE HERE
 
 
 if __name__ == "__main__":
