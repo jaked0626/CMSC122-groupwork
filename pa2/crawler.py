@@ -31,6 +31,7 @@ def make_soup(url):
     if request:
         text = util.read_request(request)
         soup = bs4.BeautifulSoup(text, 'html5lib')
+        
     return soup, request
 
 
@@ -49,13 +50,17 @@ def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
 # when calling linked_urls in a webpage, remember to use get_request_URL(request object 
 # for said webpage) as satrting_url. 
 
-def code_to_identifier(code, course_map_filename="course_map.json"):
+def code_to_identifier(code_lst, course_map_filename="course_map.json"):
     '''
     Takes course name (stringt) and converts it to the identifier according to 
     the map
     '''
+    identifier_lst = []
     dic_codes = json.load(open(course_map_filename))
-    return dic_codes.get(code.replace("\xa0", " "))
+    for code in code_lst:
+        identifier_lst.append(dic_codes.get(code.replace("\xa0", " ")))
+    
+    return identifier_lst
     #return dic_codes.get(code.replace("&#160;", " "))
 
 # dict(map(lambda x: (x[0], list(map(code_to_identifier, x[1]))), dic.items())
@@ -111,23 +116,22 @@ def crawl_soup(soup, index={}):
                     
     return index
 
-'''
-checking function for crawl_soup:
-lst = [] 
-for key, value in dic.items():
-    course_lst = []
-    if key not in lst:
-        lst.append(key)
-    else:
-        print("repitition in keys!")
-    for course in value:
-        if course is list:
-            print("oh no, you have a list of courses registered as one course")
-        if course not in course_lst:
-            course_lst.append(course)
+def checking(index):
+    lst = [] 
+    for key, value in index.items():
+        course_lst = []
+        if key not in lst:
+            lst.append(key)
         else:
-            print("repitition found in values!")
-'''
+            print("repitition in keys!")
+        for course in value:
+            if course is list:
+                print("oh no, you have a list of courses registered as one course")
+            if course not in course_lst:
+                course_lst.append(course)
+            else:
+                print("repitition found in values!")
+
 
 def find_course_names(courseblockmaintag):
     title_tag = courseblockmaintag.find_all("p", class_="courseblocktitle")[0]
@@ -157,22 +161,33 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     limiting_domain = "classes.cs.uchicago.edu"
 
     visited_urls = []
-    num_pages = 1
+    crawled_urls = []
+    num_pages = 0
     links_queue = queue.Queue()
     index = {}
     while num_pages < num_pages_to_crawl:
         if util.is_url_ok_to_follow(starting_url, limiting_domain) and starting_url not in visited_urls: # does limiting_domain need updating?
             page, request = make_soup(starting_url)
-            links_queue = linked_urls(page, util.get_request_url(request), links_queue)
+            redirected_url = util.get_request_url(request)
+            visited_urls += [starting_url, redirected_url]
+            crawled_urls += [starting_url] 
             num_pages += 1
-            visited_urls.append(starting_url)
             index = crawl_soup(page)
+            links_queue = linked_urls(page, redirected_url, links_queue)
+
         if links_queue.empty():
             break
 
         starting_url = links_queue.get()
+    
+    with open(index_filename, mode="w") as csvfile:
+        csv_writer = csv.writer(csvfile, delimiter = ",", quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+        for key, value_lst in index.items():
+            value_lst = code_to_identifier(value_lst, course_map_filename)
+            for value in value_lst:
+                csv_writer.writerow("{}|{}".format(value, key))
 
-    return index, visited_urls
+    return index_filename
 
 
 if __name__ == "__main__":
