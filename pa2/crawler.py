@@ -31,17 +31,18 @@ def make_soup(url):
     if request:
         text = util.read_request(request)
         soup = bs4.BeautifulSoup(text, 'html5lib')
-    return soup #, request
+    return soup, request
 
 
 def linked_urls(starting_url, queue=queue.Queue()):
     links = queue
-    soup = make_soup(starting_url)
+    soup, _ = make_soup(starting_url)
     for link in soup.find_all('a'):
-        relative_url = link['href']
-        linked_url = util.convert_if_relative_url(starting_url, relative_url)
-        filtered_link = util.remove_fragment(linked_url)
-        links.put(filtered_link)
+        if link.has_attr("href"):  # href raising key error
+            relative_url = link['href']
+            linked_url = util.convert_if_relative_url(starting_url, relative_url)
+            filtered_link = util.remove_fragment(linked_url)
+            links.put(filtered_link)
 
     return links
 
@@ -57,7 +58,9 @@ def code_to_identifier(code, course_map_filename="course_map.json"):
     return dic_codes.get(code.replace("\xa0", " "))
     #return dic_codes.get(code.replace("&#160;", " "))
 
-# dict(map(lambda x: (x[0], list(map(code_to_identifier, x[1]))), dic.items()))
+# dict(map(lambda x: (x[0], list(map(code_to_identifier, x[1]))), dic.items())
+# Above could map identifier to entire dictionary. However, probably better to
+# integrate this entire function into find_course_names
 
 
 def register_words(dic, text, coursetitles): #maybe add dic parameter and coursetitle parameter(list) and integrate indexing operation
@@ -97,14 +100,14 @@ def crawl_soup(soup, index={}):
             for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
                 index = register_words(index, ptag.text, course_code)
             for subseq in sequences:
-                course_code = find_course_names(subseq)
+                course_code = [find_course_names(subseq)]
                 for ptag in subseq.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                    index = register_words(index, ptag.text, [course_code])
+                    index = register_words(index, ptag.text, course_code)
             
         else:  # if it is not a sequence
-            course_code = find_course_names(tag)
+            course_code = [find_course_names(tag)]
             for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                index = register_words(index, ptag.text, [course_code])
+                index = register_words(index, ptag.text, course_code)
                     
     return index
 
@@ -131,7 +134,7 @@ def find_course_names(courseblockmaintag):
     course_code = re.search("[A-Z]{4}\xa0[0-9]{5}", title_tag.text).group()
     return course_code
 
-# Later on think of way to integrate course_to_identifier in the above function
+# Later on think of way to integrate course_to_identifier into the above function
 
 
 
@@ -152,6 +155,24 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     starting_url = ("http://www.classes.cs.uchicago.edu/archive/2015/winter"
                     "/12200-1/new.collegecatalog.uchicago.edu/index.html")
     limiting_domain = "classes.cs.uchicago.edu"
+
+    visited_urls = []
+    num_pages = 0
+    links_queue = queue.Queue()
+    index = {}
+    while num_pages < num_pages_to_crawl:
+        if util.is_url_ok_to_follow(starting_url, limiting_domain): # does limiting_domain need updating?
+            page, request = make_soup(starting_url)
+            links_queue = linked_urls(util.get_request_url(request), links_queue)
+            num_pages += 1
+            visited_urls.append(starting_url)
+            index = crawl_soup(page)
+        if links_queue.empty():
+            break
+
+        starting_url = links_queue.get()
+
+    return index, visited_urls
 
     # YOUR CODE HERE
 
