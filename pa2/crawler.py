@@ -22,10 +22,10 @@ INDEX_IGNORE = set(['a', 'also', 'an', 'and', 'are', 'as', 'at', 'be',
 
 def make_soup(url):
     '''
-    Given a url, return the soup object of this url
+    Given a url, return the soup object and request object of this url
 
     Input: url (a string)
-    Output: the soup object
+    Output: the soup object and request object
     '''
     request = util.get_request(url)
     if request:
@@ -44,7 +44,6 @@ def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
         links: queue object containing all of the links in order
     '''
     links = queue
-    #soup, _ = make_soup(starting_url)
     for link in soup.find_all('a'):
         if link.has_attr("href"):  # href raising key error
             relative_url = link['href']
@@ -54,44 +53,18 @@ def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
 
     return links
 
-# when calling linked_urls in a webpage, remember to use get_request_URL(request object 
-# for said webpage) as satrting_url. 
-
-def code_to_identifier(code_lst, course_map_filename="course_map.json"):
-    '''
-    Takes course name (stringt) and converts it to the identifier according to 
-    the map
-    
-    Inputs:
-        code_list: list of course codes
-        course_map_filename: file mapping course codes to course identifiers
-
-    Outputs:
-        identifier_lst: list of course identifiers
-    '''
-    identifier_lst = []
-    dic_codes = json.load(open(course_map_filename))
-    for code in code_lst:
-        identifier_lst.append(dic_codes.get(code.replace("\xa0", " ")))
-    
-    return identifier_lst
-    #return dic_codes.get(code.replace("&#160;", " "))
-
-# dict(map(lambda x: (x[0], list(map(code_to_identifier, x[1]))), dic.items())
-# Above could map identifier to entire dictionary. However, probably better to
-# integrate this entire function into find_course_names
-
 
 def register_words(dic, text, coursetitles): #maybe add dic parameter and coursetitle parameter(list) and integrate indexing operation
     '''
-    Returns a list of valid words in text and pairs them with their corresponsing course code for one tag in the page 
+    Takes a dictionary mapping course ids (values) to words (keys), 
+    a body of text, and the coursetitles associated with that text and 
+    and modifies the dictionary to include each word in the text and 
+    the corresponding coursetitles. 
 
     Inputs: 
-        dic: dictionary for course word pairs
-        text: text of the tag
-        coursetitles: list of course code(s) associated with the text
-    
-
+        dic (dict): dictionary for course word pairs
+        text (str): body of text
+        coursetitles: list of course id(s) associated with the text
     '''
     matches = re.findall("[a-zA-Z][a-zA-Z0-9]*", text)
     for word in matches:
@@ -101,70 +74,55 @@ def register_words(dic, text, coursetitles): #maybe add dic parameter and course
                     if course not in dic[word.lower()]:
                         dic[word.lower()].append(course)
             else:
-                dic[word.lower()] = []
-                dic[word.lower()] += coursetitles
+                dic[word.lower()] = list(coursetitles)
 
 
+def find_course_names(courseblockmaintag, id_dic):
+    '''
+    Takes a "courseblock main" or "courseblock subsequence"
+    tag and finds the course id associated with that tag. 
+
+    Inputs:
+        courseblockmaintag (soup): the soup object for a 
+          "courseblock main" tag
+        id_dic: dictionary mapping course names to course identifiers
+
+    Outputs:
+        identifier_lst: list of course identifiers
+    '''
+    title_tag = courseblockmaintag.find_all("p", class_="courseblocktitle")[0]
+    course_code = re.search("[A-Z]{4}\xa0[0-9]{5}", title_tag.text).group()
+
+    return id_dic.get(course_code.replace("\xa0", " "))
 
 
-
-def crawl_soup(soup, index={}):
+def crawl_soup(soup, index={}, id_dic=json.load(open("course_map.json"))):
     '''
     Goes through soup object (one internet page) and indexes words found
-    in that object. 
-    Returns dictionary
+    in that object to given index (dict). 
+
     Inputs:
         soup: Soup Object 
         index: Dictionary for storing words and courses
-    Output:
-        index: Dictionary storing words and course pairs
+        id_dic: Dictionary mapping course names to identifiers
+    
+    Modifies index passed into it. 
     '''
     main_tags = soup.find_all("div", class_="courseblock main")
     for tag in main_tags:
         sequences = util.find_sequence(tag)
         if sequences:  # if courseblock main is a sequence
-            course_code = [find_course_names(subseq) for subseq in sequences]
-            for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                register_words(index, ptag.text, course_code)      
+            seq_course_codes = [find_course_names(subseq, id_dic) for subseq in sequences]
+            text = " ".join([ptag.text for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"])])
+            for i, subseq in enumerate(sequences):
+                subseq_course_code = [seq_course_codes[i]]
+                for ptag in subseq.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
+                    register_words(index, " ".join([ptag.text, text]), subseq_course_code)
+
         else:  # if it is not a sequence
-            course_code = [find_course_names(tag)]
-            for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                register_words(index, ptag.text, course_code)
-                    
-    return index
-
-
-def testing(maintag, dic_index):
-    course_code = [find_course_names(maintag)]
-    for ptag in maintag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-        register_words(dic_index, ptag.text, course_code)
-    
-    
-
-def checking(index):
-    lst = [] 
-    for key, value in index.items():
-        course_lst = []
-        if key not in lst:
-            lst.append(key)
-        else:
-            print("repitition in keys!")
-        for course in value:
-            if course is list:
-                print("oh no, you have a list of courses registered as one course")
-            if course not in course_lst:
-                course_lst.append(course)
-            else:
-                print("repitition found in values!")
-
-
-def find_course_names(courseblockmaintag):  #working
-    title_tag = courseblockmaintag.find_all("p", class_="courseblocktitle")[0]
-    course_code = re.search("[A-Z]{4}\xa0[0-9]{5}", title_tag.text).group()
-    return course_code
-
-# Later on think of way to integrate course_to_identifier into the above function
-
+            text = " ".join([ptag.text for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"])])
+            course_code = [find_course_names(tag, id_dic)]
+            register_words(index, text, course_code)
 
 
 def go(num_pages_to_crawl, course_map_filename, index_filename):
@@ -173,8 +131,8 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
 
     Inputs:
         num_pages_to_crawl: the number of pages to process during the crawl
-        course_map_filename: the name of a JSON file that contains the mapping of
-          course codes to course identifiers
+        course_map_filename: the name of a JSON file that contains the mapping 
+        of course codes to course identifiers
         index_filename: the name for the CSV of the index.
 
     Outputs:
@@ -184,6 +142,7 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     starting_url = ("http://www.classes.cs.uchicago.edu/archive/2015/winter"
                     "/12200-1/new.collegecatalog.uchicago.edu/index.html")
     limiting_domain = "classes.cs.uchicago.edu"
+    id_dic = json.load(open(course_map_filename))
 
     visited_urls = set()
     crawled_urls = []
@@ -191,13 +150,14 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     links_queue = queue.Queue()
     index = {}
     while num_pages < num_pages_to_crawl:
-        if util.is_url_ok_to_follow(starting_url, limiting_domain) and starting_url not in visited_urls: # does limiting_domain need updating?
+        if util.is_url_ok_to_follow(starting_url, limiting_domain) and \
+           starting_url not in visited_urls:
             page, request = make_soup(starting_url)
             redirected_url = util.get_request_url(request)
             visited_urls.update([starting_url, redirected_url])
             crawled_urls.append(starting_url)
             num_pages += 1
-            index = crawl_soup(page)
+            crawl_soup(page, index, id_dic)
             links_queue = linked_urls(page, redirected_url, links_queue)
 
         if links_queue.empty():
@@ -208,11 +168,8 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     with open(index_filename, mode="w") as csvfile:
         csv_writer = csv.writer(csvfile, delimiter = "|")
         for key in sorted(index):
-            value_lst = code_to_identifier(index[key], course_map_filename)
-            for value in value_lst:
+            for value in index[key]:
                 csv_writer.writerow([value, key])
-
-    return index
 
 
 if __name__ == "__main__":
