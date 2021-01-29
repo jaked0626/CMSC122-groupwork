@@ -54,7 +54,7 @@ def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
     return links
 
 
-def register_words(dic, text, coursetitles): #maybe add dic parameter and coursetitle parameter(list) and integrate indexing operation
+def register_words(dic, text, coursetitles):
     '''
     Takes a dictionary mapping course ids (values) to words (keys), 
     a body of text, and the coursetitles associated with that text and 
