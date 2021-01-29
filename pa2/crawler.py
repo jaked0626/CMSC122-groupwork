@@ -36,6 +36,13 @@ def make_soup(url):
 
 
 def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
+    '''
+    Inputs:
+        soup: Soup object
+        queue: queue object
+    Outputs:
+        links: queue object containing all of the links in order
+    '''
     links = queue
     #soup, _ = make_soup(starting_url)
     for link in soup.find_all('a'):
@@ -54,6 +61,13 @@ def code_to_identifier(code_lst, course_map_filename="course_map.json"):
     '''
     Takes course name (stringt) and converts it to the identifier according to 
     the map
+    
+    Inputs:
+        code_list: list of course codes
+        course_map_filename: file mapping course codes to course identifiers
+
+    Outputs:
+        identifier_lst: list of course identifiers
     '''
     identifier_lst = []
     dic_codes = json.load(open(course_map_filename))
@@ -70,12 +84,14 @@ def code_to_identifier(code_lst, course_map_filename="course_map.json"):
 
 def register_words(dic, text, coursetitles): #maybe add dic parameter and coursetitle parameter(list) and integrate indexing operation
     '''
-    Given a body of text, returns a list of valid words in text.
-    Thinking of adding a dictionary parameter and coursetitle parameter 
-    so that this function adds new words as keys to the dictionary and 
-    the corresponding coursetitle as values. Coursetitles would be a list, 
-    so we can factor out a bulk of the coding necessary to differentiate sequences
-    and individual courses. 
+    Returns a list of valid words in text and pairs them with their corresponsing course code for one tag in the page 
+
+    Inputs: 
+        dic: dictionary for course word pairs
+        text: text of the tag
+        coursetitles: list of course code(s) associated with the text
+    
+
     '''
     matches = re.findall("[a-zA-Z][a-zA-Z0-9]*", text)
     for word in matches:
@@ -97,6 +113,11 @@ def crawl_soup(soup, index={}):
     Goes through soup object (one internet page) and indexes words found
     in that object. 
     Returns dictionary
+    Inputs:
+        soup: Soup Object 
+        index: Dictionary for storing words and courses
+    Output:
+        index: Dictionary storing words and course pairs
     '''
     main_tags = soup.find_all("div", class_="courseblock main")
     for tag in main_tags:
@@ -104,12 +125,7 @@ def crawl_soup(soup, index={}):
         if sequences:  # if courseblock main is a sequence
             course_code = [find_course_names(subseq) for subseq in sequences]
             for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                register_words(index, ptag.text, course_code)
-            for subseq in sequences:
-                course_code = [find_course_names(subseq)]
-                for ptag in subseq.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                    register_words(index, ptag.text, course_code)
-            
+                register_words(index, ptag.text, course_code)      
         else:  # if it is not a sequence
             course_code = [find_course_names(tag)]
             for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
@@ -190,13 +206,13 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
         starting_url = links_queue.get()
     
     with open(index_filename, mode="w") as csvfile:
-        csv_writer = csv.writer(csvfile, delimiter = "|", quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+        csv_writer = csv.writer(csvfile, delimiter = "|")
         for key in sorted(index):
             value_lst = code_to_identifier(index[key], course_map_filename)
             for value in value_lst:
                 csv_writer.writerow([value, key])
 
-    return index_filename
+    return index
 
 
 if __name__ == "__main__":
