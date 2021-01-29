@@ -35,7 +35,7 @@ def make_soup(url):
     return soup, request
 
 
-def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
+def linked_urls(soup, starting_url, queue=queue.Queue()):
     '''
     Inputs:
         soup: Soup object
@@ -45,7 +45,7 @@ def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
     '''
     links = queue
     for link in soup.find_all('a'):
-        if link.has_attr("href"):  # href raising key error
+        if link.has_attr("href"):
             relative_url = link['href']
             linked_url = util.convert_if_relative_url(starting_url, relative_url)
             filtered_link = util.remove_fragment(linked_url)
@@ -54,7 +54,7 @@ def linked_urls(soup, starting_url, queue=queue.Queue()): #starting_url
     return links
 
 
-def register_words(dic, text, coursetitles):
+def register_words(dic, text, coursetitles):  
     '''
     Takes a dictionary mapping course ids (values) to words (keys), 
     a body of text, and the coursetitles associated with that text and 
@@ -112,17 +112,22 @@ def crawl_soup(soup, index={}, id_dic=json.load(open("course_map.json"))):
     for tag in main_tags:
         sequences = util.find_sequence(tag)
         if sequences:  # if courseblock main is a sequence
-            seq_course_codes = [find_course_names(subseq, id_dic) for subseq in sequences]
-            text = " ".join([ptag.text for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"])])
+            seq_course_codes = [find_course_names(subseq, id_dic) 
+                                for subseq in sequences]  # list of course ids
+            for ptag in tag.find_all("p", class_=["courseblocktitle", 
+                                                  "courseblockdesc"]):
+                register_words(index, ptag.text, seq_course_codes)  
             for i, subseq in enumerate(sequences):
-                subseq_course_code = [seq_course_codes[i]]
-                for ptag in subseq.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                    register_words(index, " ".join([ptag.text, text]), subseq_course_code)
-
+                subseq_course_code = [seq_course_codes[i]]  # individual course ids
+                for ptag in subseq.find_all("p", class_=["courseblocktitle", 
+                                                         "courseblockdesc"]):
+                    register_words(index, ptag.text, subseq_course_code)
+            
         else:  # if it is not a sequence
-            text = " ".join([ptag.text for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"])])
             course_code = [find_course_names(tag, id_dic)]
-            register_words(index, text, course_code)
+            for ptag in tag.find_all("p", class_=["courseblocktitle", 
+                                                  "courseblockdesc"]):
+                register_words(index, ptag.text, course_code)
 
 
 def go(num_pages_to_crawl, course_map_filename, index_filename):
