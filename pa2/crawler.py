@@ -1,6 +1,6 @@
 # CS122: Course Search Engine Part 1
 #
-# Your name(s)
+# Chris Johnson, Jake Underland
 #
 
 import re
@@ -77,7 +77,7 @@ def register_words(dic, text, coursetitles): #maybe add dic parameter and course
     so we can factor out a bulk of the coding necessary to differentiate sequences
     and individual courses. 
     '''
-    matches = re.findall("[a-zA-Z0-9]+", text)
+    matches = re.findall("[a-zA-Z][a-zA-Z0-9]*", text)
     for word in matches:
         if word.lower() not in INDEX_IGNORE:
             if dic.get(word.lower()):
@@ -85,9 +85,10 @@ def register_words(dic, text, coursetitles): #maybe add dic parameter and course
                     if course not in dic[word.lower()]:
                         dic[word.lower()].append(course)
             else:
-                dic[word.lower()] = coursetitles
+                dic[word.lower()] = []
+                dic[word.lower()] += coursetitles
 
-    return dic
+
 
 
 
@@ -103,18 +104,26 @@ def crawl_soup(soup, index={}):
         if sequences:  # if courseblock main is a sequence
             course_code = [find_course_names(subseq) for subseq in sequences]
             for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                index = register_words(index, ptag.text, course_code)
+                register_words(index, ptag.text, course_code)
             for subseq in sequences:
                 course_code = [find_course_names(subseq)]
                 for ptag in subseq.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                    index = register_words(index, ptag.text, course_code)
+                    register_words(index, ptag.text, course_code)
             
         else:  # if it is not a sequence
             course_code = [find_course_names(tag)]
             for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                index = register_words(index, ptag.text, course_code)
+                register_words(index, ptag.text, course_code)
                     
     return index
+
+
+def testing(maintag, dic_index):
+    course_code = [find_course_names(maintag)]
+    for ptag in maintag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
+        register_words(dic_index, ptag.text, course_code)
+    
+    
 
 def checking(index):
     lst = [] 
@@ -133,7 +142,7 @@ def checking(index):
                 print("repitition found in values!")
 
 
-def find_course_names(courseblockmaintag):
+def find_course_names(courseblockmaintag):  #working
     title_tag = courseblockmaintag.find_all("p", class_="courseblocktitle")[0]
     course_code = re.search("[A-Z]{4}\xa0[0-9]{5}", title_tag.text).group()
     return course_code
@@ -160,7 +169,7 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
                     "/12200-1/new.collegecatalog.uchicago.edu/index.html")
     limiting_domain = "classes.cs.uchicago.edu"
 
-    visited_urls = []
+    visited_urls = set()
     crawled_urls = []
     num_pages = 0
     links_queue = queue.Queue()
@@ -169,8 +178,8 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
         if util.is_url_ok_to_follow(starting_url, limiting_domain) and starting_url not in visited_urls: # does limiting_domain need updating?
             page, request = make_soup(starting_url)
             redirected_url = util.get_request_url(request)
-            visited_urls += [starting_url, redirected_url]
-            crawled_urls += [starting_url] 
+            visited_urls.update([starting_url, redirected_url])
+            crawled_urls.append(starting_url)
             num_pages += 1
             index = crawl_soup(page)
             links_queue = linked_urls(page, redirected_url, links_queue)
@@ -181,11 +190,11 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
         starting_url = links_queue.get()
     
     with open(index_filename, mode="w") as csvfile:
-        csv_writer = csv.writer(csvfile, delimiter = ",", quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-        for key, value_lst in index.items():
-            value_lst = code_to_identifier(value_lst, course_map_filename)
+        csv_writer = csv.writer(csvfile, delimiter = "|", quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+        for key in sorted(index):
+            value_lst = code_to_identifier(index[key], course_map_filename)
             for value in value_lst:
-                csv_writer.writerow("{}|{}".format(value, key))
+                csv_writer.writerow([value, key])
 
     return index_filename
 
