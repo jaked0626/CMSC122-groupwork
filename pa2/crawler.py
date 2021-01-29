@@ -148,21 +148,22 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
                     "/12200-1/new.collegecatalog.uchicago.edu/index.html")
     limiting_domain = "classes.cs.uchicago.edu"
     id_dic = json.load(open(course_map_filename))
-
+    # The following data stores are used to house urls and course-word pairs
     visited_urls = set()
     crawled_urls = []
     num_pages = 0
     links_queue = queue.Queue()
     index = {}
+
     while num_pages < num_pages_to_crawl:
         if util.is_url_ok_to_follow(starting_url, limiting_domain) and \
            starting_url not in visited_urls:
             page, request = make_soup(starting_url)
             redirected_url = util.get_request_url(request)
-            visited_urls.update([starting_url, redirected_url])
+            visited_urls.update([starting_url, redirected_url]) #visited urls is a set for the sake of efficiency
             crawled_urls.append(starting_url)
             num_pages += 1
-            crawl_soup(page, index, id_dic)
+            crawl_soup(page, index, id_dic) # word-course pairs are stored in a dictionary before being transferred to csv
             links_queue = linked_urls(page, redirected_url, links_queue)
 
         if links_queue.empty():
@@ -172,7 +173,7 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
     
     with open(index_filename, mode="w") as csvfile:
         csv_writer = csv.writer(csvfile, delimiter = "|")
-        for key in sorted(index):
+        for key in sorted(index): # placing index in alphabetical order
             for value in index[key]:
                 csv_writer.writerow([value, key])
 
