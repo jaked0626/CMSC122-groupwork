@@ -67,8 +67,8 @@ def code_to_identifier(code_lst, course_map_filename="course_map.json"):
 # Above could map identifier to entire dictionary. However, probably better to
 # integrate this entire function into find_course_names
 
-
 def register_words(dic, text, coursetitles): #maybe add dic parameter and coursetitle parameter(list) and integrate indexing operation
+
     '''
     Given a body of text, returns a list of valid words in text.
     Thinking of adding a dictionary parameter and coursetitle parameter 
@@ -76,6 +76,7 @@ def register_words(dic, text, coursetitles): #maybe add dic parameter and course
     the corresponding coursetitle as values. Coursetitles would be a list, 
     so we can factor out a bulk of the coding necessary to differentiate sequences
     and individual courses. 
+
     '''
     matches = re.findall("[a-zA-Z0-9]+", text)
     for word in matches:
@@ -92,11 +93,13 @@ def register_words(dic, text, coursetitles): #maybe add dic parameter and course
 
 
 def crawl_soup(soup, index={}):
+
     '''
     Goes through soup object (one internet page) and indexes words found
     in that object. 
     Returns dictionary
     '''
+    windex = {}
     main_tags = soup.find_all("div", class_="courseblock main")
     for tag in main_tags:
         sequences = util.find_sequence(tag)
@@ -110,11 +113,19 @@ def crawl_soup(soup, index={}):
                     index = register_words(index, ptag.text, course_code)
             
         else:  # if it is not a sequence
-            course_code = [find_course_names(tag)]
+            course_code = find_course_names(tag)
             for ptag in tag.find_all("p", class_=["courseblocktitle", "courseblockdesc"]):
-                index = register_words(index, ptag.text, course_code)
-                    
-    return index
+                index = register_words({}, ptag.text, course_code)
+                for key in index.keys():
+                    if key not in windex:
+                        windex[key] = [course_code]
+                    else:
+                        windex[key].append(course_code)
+                
+
+                 
+    return windex
+
 
 def checking(index):
     lst = [] 
@@ -187,7 +198,7 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
             for value in value_lst:
                 csv_writer.writerow([value, key])
 
-    return index_filename
+    return index
 
 
 if __name__ == "__main__":
