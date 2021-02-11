@@ -28,11 +28,11 @@ def make_soup(url):
     Output: the soup object and request object
     '''
     request = util.get_request(url)
-    if request:
-        text = util.read_request(request)
-        soup = bs4.BeautifulSoup(text, 'html5lib')
-        
-    return soup, request
+    if request:                                     ###GRADER COMMENT: Before reading the request, you should
+        text = util.read_request(request)           #get_request_url and see if you were redirected to a link 
+        soup = bs4.BeautifulSoup(text, 'html5lib')  #that was already visited. In this case, you should not parse 
+                                                    #the page a second time.
+    return soup, request                            #PENALTY: -2 (visit each page once)
 
 
 def linked_urls(soup, starting_url, queue=queue.Queue()):
@@ -74,9 +74,9 @@ def register_words(dic, text, coursetitles):
                     if course not in dic[word.lower()]:
                         dic[word.lower()].append(course)
             else:
-                dic[word.lower()] = list(coursetitles)
-
-
+                dic[word.lower()] = list(coursetitles)      ###GRADER COMMENT: The index should be stored as a dictionary
+                                                            #of sets, not lists. This will avoid duplicates automatically.
+                                                            #PENALTY: -2 (maintain index)
 def find_course_names(courseblockmaintag, id_dic):
     '''
     Takes a "courseblock main" or "courseblock subsequence"
@@ -175,7 +175,7 @@ def go(num_pages_to_crawl, course_map_filename, index_filename):
         csv_writer = csv.writer(csvfile, delimiter = "|")
         for key in sorted(index): # placing index in alphabetical order
             for value in index[key]:
-                csv_writer.writerow([value, key])
+                csv_writer.writerow([value, key])       ###GRADER COMMENT: Great job on this!
 
 
 if __name__ == "__main__":
