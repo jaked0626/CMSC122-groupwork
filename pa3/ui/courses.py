@@ -32,13 +32,50 @@ def find_courses(args_from_ui):
     Returns a pair: list of attribute names in order and a list
     containing query results.
     '''
+    
+    from_join = from_function(filtered(args_from_ui))
 
     # replace with a list of the attribute names in order and a list
     # of query results.
-    return ([], [])
+    return from_join #([], [])
 
 
-########### auxiliary functions #################
+def filtered(diction):
+    "filters args_from_ui into dictionaries with keys being the input's respective table"
+    
+    fields = {'courses': ['dept', 'course_num','title'], 
+              'meeting_patterns': ['day', 'time_start', 'time_end'], 
+              'sections': ['section_num', 'enroll_lower', 'enroll_upper'], 
+              'gps': ['building', 'walking_time'], 
+              'catalog_index':['terms']} 
+    
+    current_fields = {}
+    for k in fields.keys():
+        current_fields[k] = []
+        for i in fields[k]:
+            if diction.get(i) != None:
+                current_fields[k].append(i)
+
+    
+    return current_fields
+
+def from_function(current_fields):
+    'Creates the From and Join Command'
+
+    frm_fct = 'FROM courses'
+    for i in current_fields.keys():
+        if current_fields[i] and i not in frm_fct:
+            frm_fct += str(' JOIN' + ' {}'.format(i))
+
+    return frm_fct
+
+def where_function(args_from_ui):
+    for i in args_from_ui.keys():
+
+    return 1
+
+
+
 ########### do not change this code #############
 
 def compute_time_between(lon1, lat1, lon2, lat2):
