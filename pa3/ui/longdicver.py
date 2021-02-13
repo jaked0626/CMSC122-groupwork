@@ -77,7 +77,7 @@ def find_courses(args_from_ui):
     query4, variables1 = where_func(args_copy)
     query5, variables2 = groupby_func(args_copy)
 
-    return ( " ".join([query1, query2, query3, query4, query5], variables1 + variables2)
+    return ( " ".join([query1, query2, query3, query4, query5]), variables1 + variables2)
 
 
 def select_func(args_from_ui):
