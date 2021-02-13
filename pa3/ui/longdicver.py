@@ -25,14 +25,14 @@ input_options = {"dept": {"SELECT": set(["dept", "course_num", "title"]),
                          "FROM JOIN": set(["courses", "sections", "meeting_patterns"]), 
                          "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
                          "WHERE": "meeting_patterns.time_end <= ?"},
-                 "walking_time":  {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "building_code as building", "walking_time"]),
-                         "FROM JOIN": set(["courses", "sections", "meeting_patterns", "gps"]), 
-                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id", "sections.building_code = gps.building_code"]),
-                         "WHERE": "walking_time = ?"},
-                 "building": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "building_code as building", "walking_time"]),
-                         "FROM JOIN": set(["courses", "sections", "meeting_patterns", "gps"]), 
-                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id", "sections.building_code = gps.building_code"]),
-                         "WHERE": "gps.building_code = ?"},
+                 "walking_time":  {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns", "gps AS a"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id", "sections.building_code = a.building_code"]),
+                         "WHERE": "walking_time =< ?"},
+                 "building": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns", "gps AS b"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id", "sections.building_code = b.building_code"]),
+                         "WHERE": "a.building_code = ?"},
                  "enroll_lower": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "enrollment"]),
                          "FROM JOIN": set(["courses", "sections", "meeting_patterns"]), 
                          "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
@@ -42,7 +42,7 @@ input_options = {"dept": {"SELECT": set(["dept", "course_num", "title"]),
                          "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
                          "WHERE": "sections.enrollment <= ?"}}
 
-outputs_to_fields = {"dept": "courses", "course_num": "courses", "title": "courses", "section_num": "sections", "day": "meeting_patterns", "time_start": "meeting_patterns", "time_end": "meeting_patterns", "building_code as building": "gps", "walking_time": "gps", "enrollment": "sections"}
+outputs_to_fields = {"dept": "courses.", "course_num": "courses.", "title": "courses.", "section_num": "sections.", "day": "meeting_patterns.", "time_start": "meeting_patterns.", "time_end": "meeting_patterns.", "building": "b.building_code AS ", "walking_time": "time_between(a.lon, a.lat, b.lon, b.lat) AS ", "enrollment": "sections."}
 
 ordered_outputs = ["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time", "enrollment", "title"]
 
@@ -57,7 +57,7 @@ def select_func(args_from_ui):
         for select_category in ordered_outputs:
             if select_category in query:
                 query_str.append(select_category)
-        query_str = list(map(lambda x: "{}.{}".format(outputs_to_fields[x], x), query_str))
+        query_str = list(map(lambda x: "{}{}".format(outputs_to_fields[x], x), query_str))
         query_str = "SELECT " + ", ".join(query_str)
         
     return query_str
@@ -109,3 +109,4 @@ def where_func(args_from_ui):
     query = "WHERE " +  " AND ".join(query)
 
     return query, tupleq
+
