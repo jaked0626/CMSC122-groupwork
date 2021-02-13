@@ -32,12 +32,17 @@ def find_courses(args_from_ui):
     Returns a pair: list of attribute names in order and a list
     containing query results.
     '''
-    
-    from_join = from_function(filtered(args_from_ui))
+    if 'terms' in args_from_ui:
+        args_from_ui['word'] = [args_from_ui['terms']][0].split()
+        del args_from_ui['terms']
+
+    frm = from_function(filtered(args_from_ui))
+    whr = where_function(args_from_ui, filtered(args_from_ui))
 
     # replace with a list of the attribute names in order and a list
     # of query results.
-    return from_join #([], [])
+    #([], [])
+    return frm, whr
 
 
 def filtered(diction):
@@ -47,7 +52,7 @@ def filtered(diction):
               'meeting_patterns': ['day', 'time_start', 'time_end'], 
               'sections': ['section_num', 'enroll_lower', 'enroll_upper'], 
               'gps': ['building', 'walking_time'], 
-              'catalog_index':['terms']} 
+              'catalog_index':['word']} 
     
     current_fields = {}
     for k in fields.keys():
@@ -55,6 +60,8 @@ def filtered(diction):
         for i in fields[k]:
             if diction.get(i) != None:
                 current_fields[k].append(i)
+
+
 
     
     return current_fields
@@ -69,10 +76,31 @@ def from_function(current_fields):
 
     return frm_fct
 
-def where_function(args_from_ui):
-    for i in args_from_ui.keys():
-
-    return 1
+def where_function(args_from_ui, filtered):
+    'creates the WHERE statement'
+    whr_fct = 'WHERE'
+    tester = ""
+    for i in filtered.keys():
+        if filtered[i]:
+            for j in filtered[i]:
+                if type(args_from_ui[j]) == list:
+                    for value in args_from_ui[j]: #The following 3 if statements are there to put the necessary paranthesis around OR statements in the case of items with multiple entries 
+                        if args_from_ui[j][-1] == value:
+                            x = (str(' {}.{}'.format(i, j) + ' = ?' + ')' + ' AND'))
+                        if args_from_ui[j][0] == value:
+                            x = (str(' ({}.{}'.format(i, j) + ' = ?' + ' OR'))                 
+                        if value != args_from_ui[j][-1] and value != args_from_ui[j][0]:
+                            x = (str(' {}.{}'.format(i, j) + ' = ?' + ' OR'))
+                        whr_fct += x
+                if type(args_from_ui[j]) == int:
+                    if 'lower' in j or 'start' in j:
+                        whr_fct += str(' {}.{}'.format(i, j) + ' >= ?' + ' AND')
+                    if 'upper' in j or 'end' in j:
+                        whr_fct += str(' {}.{}'.format(i, j) + ' <= ?' + ' AND')
+                elif ' {}.{}'.format(i, j) not in whr_fct:
+                    whr_fct += str(' {}.{}'.format(i, j) + ' = ?' + ' AND')
+    whr_fct = whr_fct.rsplit(' ', 1)[0]
+    return whr_fct
 
 
 
