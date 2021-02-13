@@ -105,6 +105,14 @@ def find_courses(args_from_ui):
     return columns, final_result
 
 def select_func(args_from_ui, input_options):
+    '''
+    Creates the SELECT block
+    Inputs: 
+        args_from_ui: a dictionary containing all of the inputs and arguments
+        input_options: a dictionary containing the input keys as keys and potential SQL outputs as values
+    Outputs:
+        query_str: a string acting as the SELECT statements for the SQL command
+    '''
     outputs_to_fields = {"dept": "courses.", "course_num": "courses.", "title": "courses.", "section_num": "sections.", "day": "meeting_patterns.", "time_start": "meeting_patterns.", "time_end": "meeting_patterns.", "building": "b.building_code AS ", "walking_time": "time_between(a.lon, a.lat, b.lon, b.lat) AS ", "enrollment": "sections."}
     ordered_outputs = ["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time", "enrollment", "title"]
     query = set()
@@ -124,7 +132,14 @@ def select_func(args_from_ui, input_options):
 
 
 def from_func(args_from_ui, input_options):
-    'Creates the From and Join Command'
+    '''
+    Creates the From and Join Command
+    Inputs: 
+        args_from_ui: a dictionary containing all of the inputs and arguments
+        input_options: a dictionary containing the input keys as keys and potential SQL outputs as values
+    Outputs:
+        query: a string acting as the FROM and JOIN statements for the SQL command
+    '''
     query = set()
 
     for input_ in args_from_ui.keys():
