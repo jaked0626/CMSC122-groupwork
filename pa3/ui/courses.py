@@ -37,6 +37,7 @@ def find_courses(args_from_ui):
               'sections': {'Inputs': ['enroll_lower', 'enroll_upper'], 'Outputs': ['day', 'time_start', 'time_end', 'section_num', 'course_num', 'dept', 'enrollment']}, 
               'gps': {'Inputs': ['building', 'walking_time'], 'Outputs': ['day', 'time_start', 'time_end', 'section_num', 'course_num', 'dept', 'enrollment', 'building', 'walking_time']}, 
               'catalog_index': {'Inputs': ['word'], 'Outputs': ['dept', 'course_num','title']}} 
+    table_check = {'courses': ['dept', 'course_num','title'], 'meeting_patterns': ['day', 'time_start', 'time_end'], 'sections': ['section_num', 'building', 'enrollment']}
 
     if 'terms' in args_from_ui:
         args_from_ui['word'] = [args_from_ui['terms']][0].split()
@@ -44,11 +45,13 @@ def find_courses(args_from_ui):
 
     frm = from_function(filtered(args_from_ui, fields))
     whr = where_function(args_from_ui, filtered(args_from_ui, fields))
-    slct = select_function(filtered(args_from_ui, fields), fields)
+    slct = select_function(filtered(args_from_ui, fields), fields, table_check)
+    on = on_function(args_from_ui, filtered(args_from_ui, fields))
     # replace with a list of the attribute names in order and a list
     # of query results.
     #([], [])
-    return slct, frm, whr
+    #args_from_ui
+    return '{} {} {} {}'.format(slct, frm, on, whr)
 
 
 def filtered(diction, fields):
@@ -63,15 +66,17 @@ def filtered(diction, fields):
     
     return current_fields
 
-def select_function(current_fields, fields):
+def select_function(current_fields, fields, table_check):
     slct_order = ['dept', 'course_num', 'section_num', 'day', 'time_start', 'time_end', 'building', 'enrollment', 'title'] #my attempt at telling python how to order it
+    
     slct_fct = 'SELECT courses.dept, courses.course_num'
     for k in current_fields.keys():
         if current_fields[k]:
             for i in slct_order:
                 if i in fields[k]['Outputs'] and '.{}'.format(i) not in slct_fct:
-                    print(i)
-                    slct_fct += ', {}.{}'.format(k, i)
+                    for a in table_check:
+                        if i in table_check[a]:
+                            slct_fct += ', {}.{}'.format(a, i)
     
     return slct_fct
 
@@ -84,6 +89,16 @@ def from_function(current_fields):
             frm_fct += str(' JOIN' + ' {}'.format(i))
 
     return frm_fct
+
+def on_function(args_from_ui, filtered):
+    id_match = {'course_id': ['courses', 'sections', 'catalog_index'], 'meeting_pattern_id': ['meeting_patterns', 'sections']}
+    on_fct = 'ON'
+    for k in id_match.keys():
+        for j, l in enumerate(id_match[k]):
+            if filtered.get(l) != None and '{}.{} = {}.{}'.format(id_match[k][j-1], k, l, k) not in on_fct:
+                on_fct += " {}.{} = {}.{} AND".format(l, k, id_match[k][j-1], k)
+    on_fct = on_fct.rsplit(' ', 1)[0]
+    return on_fct
 
 def where_function(args_from_ui, filtered):
     'creates the WHERE statement'
@@ -102,10 +117,14 @@ def where_function(args_from_ui, filtered):
                             x = (str(' {}.{}'.format(i, j) + ' = ?' + ' OR'))
                         whr_fct += x
                 if type(args_from_ui[j]) == int:
+                    if 'enroll' in j:
+                        t = 'enrollment'
+                    else:
+                        t = j
                     if 'lower' in j or 'start' in j:
-                        whr_fct += str(' {}.{}'.format(i, j) + ' >= ?' + ' AND')
+                        whr_fct += str(' {}.{}'.format(i, t) + ' >= ?' + ' AND')
                     if 'upper' in j or 'end' in j:
-                        whr_fct += str(' {}.{}'.format(i, j) + ' <= ?' + ' AND')
+                        whr_fct += str(' {}.{}'.format(i, t) + ' <= ?' + ' AND')
                 elif ' {}.{}'.format(i, j) not in whr_fct:
                     whr_fct += str(' {}.{}'.format(i, j) + ' = ?' + ' AND')
     whr_fct = whr_fct.rsplit(' ', 1)[0]
