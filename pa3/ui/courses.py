@@ -137,8 +137,7 @@ def from_func(args_from_ui, input_options):
     Inputs: 
         args_from_ui: a dictionary containing all of the inputs and arguments
         input_options: a dictionary containing the input keys as keys and potential SQL outputs as values
-    Outputs:
-        query: a string acting as the FROM and JOIN statements for the SQL command
+    Returns a list containing a string acting as the FROM and JOIN statements for the SQL command
     '''
     query = set()
 
@@ -152,7 +151,16 @@ def from_func(args_from_ui, input_options):
     return query
 
 def on_func(args_from_ui, input_options):
-    'Creates the ON Command'
+    '''
+    Creates the ON argument of the SQL statement. 
+    
+    Inputs:
+      args_from_ui (dic): Dictionary with search inputs
+      input_options (dic): Dictionary containing all necessary information
+        per input term. 
+    Returns a list containing a string with the ON part of the query.
+    '''
+
     query = set()
 
     for input_ in args_from_ui.keys():
@@ -165,6 +173,15 @@ def on_func(args_from_ui, input_options):
     return query
 
 def where_func(args_from_ui, input_options): 
+    '''
+    Creates the WHERE argument of the SQL statement. 
+    
+    Inputs:
+      args_from_ui (dic): Dictionary with search inputs
+      input_options (dic): Dictionary containing all necessary information
+        per input term. 
+    Returns a list containing a string with the ON part of the query.
+    '''
 
     query = []
     tupleq = tuple()
@@ -183,11 +200,25 @@ def where_func(args_from_ui, input_options):
 
     return query, tupleq
 
-def groupby_func(args_copy):
+def groupby_func(args_from_ui):
+    '''
+    Creates the GROUP BY and HAVING arguments of the SQL statement. 
+    Only generates these when multiple terms are passed into the search
+    engine. This ensures that only courses with all the terms appearing in 
+    their title or description are returned by the search. 
+    
+    Inputs:
+      args_from_ui (dic): Dictionary with search inputs
+      input_options (dic): Dictionary containing all necessary information
+        per input term. 
+    Returns a tuple with a list containing a string with the FROM part of 
+      the query and a tuple containing the variable for the HAVING COUNT(*)
+      statement. 
+    '''
     query = []
     tupleq = tuple()
-    if args_copy.get("terms"):
-        num_terms = len(args_copy["terms"])
+    if args_from_ui.get("terms"):
+        num_terms = len(args_from_ui["terms"])
         if num_terms > 1:
             query = ["GROUP BY courses.course_id HAVING COUNT(*) >= ?"]
             tupleq = (num_terms,)
