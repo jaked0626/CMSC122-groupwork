@@ -77,7 +77,7 @@ def find_courses(args_from_ui):
     query4, variables1 = where_func(args_copy)
     query5, variables2 = groupby_func(args_copy)
 
-    return ( " ".join([query1, query2, query3, query4, query5]), variables1 + variables2)
+    return ( " ".join(query1 + query2 + query3 + query4 + query5), variables1 + variables2)
 
 
 def select_func(args_from_ui):
@@ -106,11 +106,11 @@ def from_func(args_from_ui):
     for input_ in args_from_ui.keys():
         query.update(input_options[input_]["FROM JOIN"])
     if query:
-        query = ["FROM " + " JOIN ".join(query)]
+        query = "FROM " + " JOIN ".join(query)
     else:
         query = []
 
-    return query
+    return [query]
 
 def on_func(args_from_ui):
     'Creates the ON Command'
@@ -119,17 +119,13 @@ def on_func(args_from_ui):
     for input_ in args_from_ui.keys():
         query.update(input_options[input_]["ON"])
     if query:
-        [query = "ON " + " AND ".join(query)]
+        query = "ON " + " AND ".join(query)
     else:
         query = []
 
-    return query
+    return [query]
 
 def where_func(args_from_ui): 
-
-    args_copy = dict(args_from_ui)
-    if args_copy.get("terms"):
-        args_copy["terms"] = args_copy["terms"].split()
 
     query = []
     tupleq = tuple()
@@ -144,9 +140,9 @@ def where_func(args_from_ui):
             query.append(input_options[input_]["WHERE"])
             tupleq += (value, )
     if query:
-        [query = "WHERE " +  " AND ".join(query)]
+        query = "WHERE " +  " AND ".join(query)
 
-    return query, tupleq
+    return [query], tupleq
 
 def groupby_func(args_copy):
     num_terms = len(args_copy["terms"])
