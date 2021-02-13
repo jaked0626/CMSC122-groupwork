@@ -44,11 +44,11 @@ def find_courses(args_from_ui):
 
     frm = from_function(filtered(args_from_ui, fields))
     whr = where_function(args_from_ui, filtered(args_from_ui, fields))
-
+    slct = select_function(filtered(args_from_ui, fields), fields)
     # replace with a list of the attribute names in order and a list
     # of query results.
     #([], [])
-    return frm, whr
+    return slct, frm, whr
 
 
 def filtered(diction, fields):
@@ -64,11 +64,9 @@ def filtered(diction, fields):
     return current_fields
 
 def select_function(current_fields, fields):
-    slct_order = ['dept', 'course_num', 'section_num', 'day', 'time_start', 'time_end', 'building', 'enrollment', 'title']
+    slct_order = ['dept', 'course_num', 'section_num', 'day', 'time_start', 'time_end', 'building', 'enrollment', 'title'] #my attempt at telling python how to order it
     slct_fct = 'SELECT courses.dept, courses.course_num'
-    print(current_fields)
     for k in current_fields.keys():
-        print(k)
         if current_fields[k]:
             for i in slct_order:
                 if i in fields[k]['Outputs'] and '.{}'.format(i) not in slct_fct:
@@ -113,7 +111,7 @@ def where_function(args_from_ui, filtered):
     whr_fct = whr_fct.rsplit(' ', 1)[0]
     return whr_fct
 
-    
+
 
 ########### do not change this code #############
 
