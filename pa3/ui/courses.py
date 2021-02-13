@@ -32,12 +32,18 @@ def find_courses(args_from_ui):
     Returns a pair: list of attribute names in order and a list
     containing query results.
     '''
+    fields = {'courses': {'Inputs': ['dept'], 'Outputs': ['dept', 'course_num','title']}, 
+              'meeting_patterns': {'Inputs': ['day', 'time_start', 'time_end'], 'Outputs': ['day', 'time_start', 'time_end', 'section_num', 'course_num', 'dept']}, 
+              'sections': {'Inputs': ['enroll_lower', 'enroll_upper'], 'Outputs': ['day', 'time_start', 'time_end', 'section_num', 'course_num', 'dept', 'enrollment']}, 
+              'gps': {'Inputs': ['building', 'walking_time'], 'Outputs': ['day', 'time_start', 'time_end', 'section_num', 'course_num', 'dept', 'enrollment', 'building', 'walking_time']}, 
+              'catalog_index': {'Inputs': ['word'], 'Outputs': ['dept', 'course_num','title']}} 
+
     if 'terms' in args_from_ui:
         args_from_ui['word'] = [args_from_ui['terms']][0].split()
         del args_from_ui['terms']
 
-    frm = from_function(filtered(args_from_ui))
-    whr = where_function(args_from_ui, filtered(args_from_ui))
+    frm = from_function(filtered(args_from_ui, fields))
+    whr = where_function(args_from_ui, filtered(args_from_ui, fields))
 
     # replace with a list of the attribute names in order and a list
     # of query results.
@@ -45,26 +51,31 @@ def find_courses(args_from_ui):
     return frm, whr
 
 
-def filtered(diction):
+def filtered(diction, fields):
     "filters args_from_ui into dictionaries with keys being the input's respective table"
-    
-    fields = {'courses': ['dept', 'course_num','title'], 
-              'meeting_patterns': ['day', 'time_start', 'time_end'], 
-              'sections': ['section_num', 'enroll_lower', 'enroll_upper'], 
-              'gps': ['building', 'walking_time'], 
-              'catalog_index':['word']} 
     
     current_fields = {}
     for k in fields.keys():
         current_fields[k] = []
-        for i in fields[k]:
+        for i in fields[k]['Inputs']:
             if diction.get(i) != None:
                 current_fields[k].append(i)
-
-
-
     
     return current_fields
+
+def select_function(current_fields, fields):
+    slct_order = ['dept', 'course_num', 'section_num', 'day', 'time_start', 'time_end', 'building', 'enrollment', 'title']
+    slct_fct = 'SELECT courses.dept, courses.course_num'
+    print(current_fields)
+    for k in current_fields.keys():
+        print(k)
+        if current_fields[k]:
+            for i in slct_order:
+                if i in fields[k]['Outputs'] and '.{}'.format(i) not in slct_fct:
+                    print(i)
+                    slct_fct += ', {}.{}'.format(k, i)
+    
+    return slct_fct
 
 def from_function(current_fields):
     'Creates the From and Join Command'
@@ -102,7 +113,7 @@ def where_function(args_from_ui, filtered):
     whr_fct = whr_fct.rsplit(' ', 1)[0]
     return whr_fct
 
-
+    
 
 ########### do not change this code #############
 
