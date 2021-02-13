@@ -1,7 +1,17 @@
+### CS122, Winter 2021: Course search engine: search
+###
+### Chris Johnson, Jake Underland
+
 
 from math import radians, cos, sin, asin, sqrt
 import sqlite3
 import os
+
+
+# Use this filename for the database
+DATA_DIR = os.path.dirname(__file__)
+DATABASE_FILENAME = os.path.join(DATA_DIR, 'course-info.db')
+
 
 input_options = {"dept": {"SELECT": set(["dept", "course_num", "title"]),
                           "FROM JOIN": set(["courses"]), 
@@ -41,11 +51,6 @@ input_options = {"dept": {"SELECT": set(["dept", "course_num", "title"]),
                          "WHERE": "sections.enrollment <= ?"}}
 
 
-# Use this filename for the database
-DATA_DIR = os.path.dirname(__file__)
-DATABASE_FILENAME = os.path.join(DATA_DIR, 'course-info.db')
-
-
 def find_courses(args_from_ui):
     '''
     Takes a dictionary containing search criteria and returns courses
@@ -72,15 +77,10 @@ def find_courses(args_from_ui):
         args_copy["terms"] = args_copy["terms"].split()
     
     query1 = select_func(args_copy)
-    print(1, query1)
     query2 = from_func(args_copy)
-    print(2, query2)
     query3 = on_func(args_copy)
-    print(3, query3)
     query4, variables1 = where_func(args_copy)
-    print(4, query4)
     query5, variables2 = groupby_func(args_copy)
-    print(5, query5)
 
     return ( " ".join(query1 + query2 + query3 + query4 + query5), variables1 + variables2)
 
@@ -162,3 +162,76 @@ def groupby_func(args_copy):
 
 
 
+
+########### do not change this code #############
+
+def compute_time_between(lon1, lat1, lon2, lat2):
+    '''
+    Converts the output of the haversine formula to walking time in minutes
+    '''
+    meters = haversine(lon1, lat1, lon2, lat2)
+
+    # adjusted downwards to account for manhattan distance
+    walk_speed_m_per_sec = 1.1
+    mins = meters / (walk_speed_m_per_sec * 60)
+
+    return mins
+
+
+def haversine(lon1, lat1, lon2, lat2):
+    '''
+    Calculate the circle distance between two points
+    on the earth (specified in decimal degrees)
+    '''
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * asin(sqrt(a))
+
+    # 6367 km is the radius of the Earth
+    km = 6367 * c
+    m = km * 1000
+    return m
+
+
+def get_header(cursor):
+    '''
+    Given a cursor object, returns the appropriate header (column names)
+    '''
+    desc = cursor.description
+    header = ()
+
+    for i in desc:
+        header = header + (clean_header(i[0]),)
+
+    return list(header)
+
+
+def clean_header(s):
+    '''
+    Removes table name from header
+    '''
+    for i, _ in enumerate(s):
+        if s[i] == ".":
+            s = s[i + 1:]
+            break
+
+    return s
+
+
+########### some sample inputs #################
+
+EXAMPLE_0 = {"time_start": 930,
+             "time_end": 1500,
+             "day": ["MWF"]}
+
+EXAMPLE_1 = {"dept": "CMSC",
+             "day": ["MWF", "TR"],
+             "time_start": 1030,
+             "time_end": 1500,
+             "enroll_lower": 20,
+             "terms": "computer science"}
