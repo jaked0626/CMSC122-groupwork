@@ -56,7 +56,7 @@ def find_courses(args_from_ui):
                          "WHERE": "meeting_patterns.time_end <= ?"},
                  "walking_time":  {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time"]),
                          "FROM JOIN": set(["courses", "sections", "meeting_patterns", "gps AS a"]), 
-                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id", "sections.building_code = a.building_code"]),
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
                          "WHERE": "walking_time <= ?"},
                  "building": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time"]),
                          "FROM JOIN": set(["courses", "sections", "meeting_patterns", "gps AS b"]), 
