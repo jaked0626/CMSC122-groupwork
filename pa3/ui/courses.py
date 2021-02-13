@@ -42,6 +42,8 @@ def find_courses(args_from_ui):
     if 'terms' in args_from_ui:
         args_from_ui['word'] = [args_from_ui['terms']][0].split()
         del args_from_ui['terms']
+    
+    #tester = args_from_ui 
 
     frm = from_function(filtered(args_from_ui, fields))
     whr = where_function(args_from_ui, filtered(args_from_ui, fields))
@@ -50,7 +52,6 @@ def find_courses(args_from_ui):
     # replace with a list of the attribute names in order and a list
     # of query results.
     #([], [])
-    #args_from_ui
     return '{} {} {} {}'.format(slct, frm, on, whr)
 
 
@@ -89,13 +90,14 @@ def from_function(current_fields):
             frm_fct += str(' JOIN' + ' {}'.format(i))
 
     return frm_fct
-
+#1
 def on_function(args_from_ui, filtered):
-    id_match = {'course_id': ['courses', 'sections', 'catalog_index'], 'meeting_pattern_id': ['meeting_patterns', 'sections']}
+    id_match = {'course_id': ['courses', 'sections', 'catalog_index'], 'meeting_pattern_id': ['meeting_patterns', 'sections'], 'building_code': ['gps', 'sections']}
     on_fct = 'ON'
     for k in id_match.keys():
         for j, l in enumerate(id_match[k]):
-            if filtered.get(l) != None and '{}.{} = {}.{}'.format(id_match[k][j-1], k, l, k) not in on_fct:
+            if filtered.get(l) and '{}.{} = {}.{}'.format(id_match[k][j-1], k, l, k) not in on_fct:
+                print(filtered.get(id_match[k][j-1]), id_match[k][j-1])
                 on_fct += " {}.{} = {}.{} AND".format(l, k, id_match[k][j-1], k)
     on_fct = on_fct.rsplit(' ', 1)[0]
     return on_fct
@@ -107,8 +109,9 @@ def where_function(args_from_ui, filtered):
     for i in filtered.keys():
         if filtered[i]:
             for j in filtered[i]:
-                if type(args_from_ui[j]) == list:
-                    for value in args_from_ui[j]: #The following 3 if statements are there to put the necessary paranthesis around OR statements in the case of items with multiple entries 
+                print('J', j)
+                if type(args_from_ui[j]) == list and len(args_from_ui[j]) >1:
+                    for value in args_from_ui[j]: #The following 3 if statements are there to put necessary paranthesis around OR statements in the case of items with multiple entries 
                         if args_from_ui[j][-1] == value:
                             x = (str(' {}.{}'.format(i, j) + ' = ?' + ')' + ' AND'))
                         if args_from_ui[j][0] == value:
@@ -116,10 +119,10 @@ def where_function(args_from_ui, filtered):
                         if value != args_from_ui[j][-1] and value != args_from_ui[j][0]:
                             x = (str(' {}.{}'.format(i, j) + ' = ?' + ' OR'))
                         whr_fct += x
-                if type(args_from_ui[j]) == int:
+                elif type(args_from_ui[j]) == int:
                     if 'enroll' in j:
                         t = 'enrollment'
-                    else:
+                    else: 
                         t = j
                     if 'lower' in j or 'start' in j:
                         whr_fct += str(' {}.{}'.format(i, t) + ' >= ?' + ' AND')
@@ -127,7 +130,11 @@ def where_function(args_from_ui, filtered):
                         whr_fct += str(' {}.{}'.format(i, t) + ' <= ?' + ' AND')
                 elif ' {}.{}'.format(i, j) not in whr_fct:
                     whr_fct += str(' {}.{}'.format(i, j) + ' = ?' + ' AND')
-    whr_fct = whr_fct.rsplit(' ', 1)[0]
+                if j == 'word':
+                        print('Xx', j)
+                        whr_fct = (whr_fct.rsplit(' ', 1)[0])
+                        whr_fct += ' GROUP BY courses.course_id HAVING COUNT(*) > 1 '
+    whr_fct = (whr_fct.rsplit(' ', 1)[0]) +";"
     return whr_fct
 
 
