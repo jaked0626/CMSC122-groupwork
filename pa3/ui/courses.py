@@ -31,111 +31,154 @@ def find_courses(args_from_ui):
 
     Returns a pair: list of attribute names in order and a list
     containing query results.
+
     '''
-    fields = {'courses': {'Inputs': ['dept'], 'Outputs': ['dept', 'course_num','title']}, 
-              'meeting_patterns': {'Inputs': ['day', 'time_start', 'time_end'], 'Outputs': ['day', 'time_start', 'time_end', 'section_num', 'course_num', 'dept']}, 
-              'sections': {'Inputs': ['enroll_lower', 'enroll_upper'], 'Outputs': ['day', 'time_start', 'time_end', 'section_num', 'course_num', 'dept', 'enrollment']}, 
-              'gps': {'Inputs': ['building', 'walking_time'], 'Outputs': ['day', 'time_start', 'time_end', 'section_num', 'course_num', 'dept', 'enrollment', 'building', 'walking_time']}, 
-              'catalog_index': {'Inputs': ['word'], 'Outputs': ['dept', 'course_num','title']}} 
-    table_check = {'courses': ['dept', 'course_num','title'], 'meeting_patterns': ['day', 'time_start', 'time_end'], 'sections': ['section_num', 'building', 'enrollment']}
 
-    if 'terms' in args_from_ui:
-        args_from_ui['word'] = [args_from_ui['terms']][0].split()
-        del args_from_ui['terms']
+    input_options = {"dept": {"SELECT": set(["dept", "course_num", "title"]),
+                          "FROM JOIN": set(["courses"]), 
+                          "ON": set([]),
+                          "WHERE": "courses.dept = ?"},
+                 "terms": {"SELECT": set(["dept", "course_num", "title"]),
+                          "FROM JOIN": set(["courses", "catalog_index"]), 
+                          "ON": set(["courses.course_id = catalog_index.course_id"]),
+                          "WHERE": "catalog_index.word = ?"},
+                 "day": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
+                         "WHERE": "meeting_patterns.day = ?"},
+                 "time_start": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
+                         "WHERE": "meeting_patterns.time_start >= ?"},
+                 "time_end": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
+                         "WHERE": "meeting_patterns.time_end <= ?"},
+                 "walking_time":  {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns", "gps AS a"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id", "sections.building_code = a.building_code"]),
+                         "WHERE": "walking_time <= ?"},
+                 "building": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns", "gps AS b"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id", "sections.building_code = b.building_code"]),
+                         "WHERE": "a.building_code = ?"},
+                 "enroll_lower": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "enrollment"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
+                         "WHERE": "sections.enrollment >= ?"},
+                 "enroll_upper": {"SELECT": set(["dept", "course_num", "section_num", "day", "time_start", "time_end", "enrollment"]),
+                         "FROM JOIN": set(["courses", "sections", "meeting_patterns"]), 
+                         "ON": set(["courses.course_id = sections.course_id", "sections.meeting_pattern_id = meeting_patterns.meeting_pattern_id"]),
+                         "WHERE": "sections.enrollment <= ?"}}
+
+    connection = sqlite3.connect(DATABASE_FILENAME) 
+    c = connection.cursor()
+    connection.create_function("time_between", 4, compute_time_between)
+
+    args_copy = dict(args_from_ui)
+    if args_copy.get("terms"):
+        args_copy["terms"] = args_copy["terms"].split()
     
-    #tester = args_from_ui 
-
-    frm = from_function(filtered(args_from_ui, fields))
-    whr = where_function(args_from_ui, filtered(args_from_ui, fields))
-    slct = select_function(filtered(args_from_ui, fields), fields, table_check)
-    on = on_function(args_from_ui, filtered(args_from_ui, fields))
-    # replace with a list of the attribute names in order and a list
-    # of query results.
-    #([], [])
-    return '{} {} {} {}'.format(slct, frm, on, whr)
-
-
-def filtered(diction, fields):
-    "filters args_from_ui into dictionaries with keys being the input's respective table"
+    query1 = select_func(args_copy, input_options)
     
-    current_fields = {}
-    for k in fields.keys():
-        current_fields[k] = []
-        for i in fields[k]['Inputs']:
-            if diction.get(i) != None:
-                current_fields[k].append(i)
+    query2 = from_func(args_copy, input_options)
     
-    return current_fields
+    query3 = on_func(args_copy, input_options)
+    
+    query4, variables1 = where_func(args_copy, input_options)
+    
+    query5, variables2 = groupby_func(args_copy)
+    
 
-def select_function(current_fields, fields, table_check):
-    slct_order = ['dept', 'course_num', 'section_num', 'day', 'time_start', 'time_end', 'building', 'enrollment', 'title'] #my attempt at telling python how to order it
-    
-    slct_fct = 'SELECT courses.dept, courses.course_num'
-    for k in current_fields.keys():
-        if current_fields[k]:
-            for i in slct_order:
-                if i in fields[k]['Outputs'] and '.{}'.format(i) not in slct_fct:
-                    for a in table_check:
-                        if i in table_check[a]:
-                            slct_fct += ', {}.{}'.format(a, i)
-    
-    return slct_fct
+    final_command = ( " ".join(query1 + query2 + query3 + query4 + query5), variables1 + variables2)
+    print(final_command[0], final_command[1])
+    search_result = c.execute(final_command[0], final_command[1])
+    print(search_result)
+    final_result = search_result.fetchall()
+    print(final_result)
+    if final_result:
+        columns = get_header(c)
+    else:
+        columns = []
+    connection.close()
 
-def from_function(current_fields):
+    return columns, final_result
+
+def select_func(args_from_ui, input_options):
+    outputs_to_fields = {"dept": "courses.", "course_num": "courses.", "title": "courses.", "section_num": "sections.", "day": "meeting_patterns.", "time_start": "meeting_patterns.", "time_end": "meeting_patterns.", "building": "b.building_code AS ", "walking_time": "time_between(a.lon, a.lat, b.lon, b.lat) AS ", "enrollment": "sections."}
+    ordered_outputs = ["dept", "course_num", "section_num", "day", "time_start", "time_end", "building", "walking_time", "enrollment", "title"]
+    query = set()
+    query_str = []
+    for input_, dic in input_options.items():
+        if input_ in args_from_ui.keys():
+            query.update(dic["SELECT"])
+    
+    if query:
+        for select_category in ordered_outputs:
+            if select_category in query:
+                query_str.append(select_category)
+        query_str = list(map(lambda x: "{}{}".format(outputs_to_fields[x], x), query_str))
+        query_str = ["SELECT " + ", ".join(query_str)]
+        
+    return query_str
+
+
+def from_func(args_from_ui, input_options):
     'Creates the From and Join Command'
+    query = set()
 
-    frm_fct = 'FROM courses'
-    for i in current_fields.keys():
-        if current_fields[i] and i not in frm_fct:
-            frm_fct += str(' JOIN' + ' {}'.format(i))
+    for input_ in args_from_ui.keys():
+        query.update(input_options[input_]["FROM JOIN"])
+    if query:
+        query = ["FROM " + " JOIN ".join(query)]
+    else:
+        query = []
 
-    return frm_fct
-#1
-def on_function(args_from_ui, filtered):
-    id_match = {'course_id': ['courses', 'sections', 'catalog_index'], 'meeting_pattern_id': ['meeting_patterns', 'sections'], 'building_code': ['gps', 'sections']}
-    on_fct = 'ON'
-    for k in id_match.keys():
-        for j, l in enumerate(id_match[k]):
-            if filtered.get(l) and '{}.{} = {}.{}'.format(id_match[k][j-1], k, l, k) not in on_fct:
-                print(filtered.get(id_match[k][j-1]), id_match[k][j-1])
-                on_fct += " {}.{} = {}.{} AND".format(l, k, id_match[k][j-1], k)
-    on_fct = on_fct.rsplit(' ', 1)[0]
-    return on_fct
+    return query
 
-def where_function(args_from_ui, filtered):
-    'creates the WHERE statement'
-    whr_fct = 'WHERE'
-    tester = ""
-    for i in filtered.keys():
-        if filtered[i]:
-            for j in filtered[i]:
-                print('J', j)
-                if type(args_from_ui[j]) == list and len(args_from_ui[j]) >1:
-                    for value in args_from_ui[j]: #The following 3 if statements are there to put necessary paranthesis around OR statements in the case of items with multiple entries 
-                        if args_from_ui[j][-1] == value:
-                            x = (str(' {}.{}'.format(i, j) + ' = ?' + ')' + ' AND'))
-                        if args_from_ui[j][0] == value:
-                            x = (str(' ({}.{}'.format(i, j) + ' = ?' + ' OR'))                 
-                        if value != args_from_ui[j][-1] and value != args_from_ui[j][0]:
-                            x = (str(' {}.{}'.format(i, j) + ' = ?' + ' OR'))
-                        whr_fct += x
-                elif type(args_from_ui[j]) == int:
-                    if 'enroll' in j:
-                        t = 'enrollment'
-                    else: 
-                        t = j
-                    if 'lower' in j or 'start' in j:
-                        whr_fct += str(' {}.{}'.format(i, t) + ' >= ?' + ' AND')
-                    if 'upper' in j or 'end' in j:
-                        whr_fct += str(' {}.{}'.format(i, t) + ' <= ?' + ' AND')
-                elif ' {}.{}'.format(i, j) not in whr_fct:
-                    whr_fct += str(' {}.{}'.format(i, j) + ' = ?' + ' AND')
-                if j == 'word':
-                        print('Xx', j)
-                        whr_fct = (whr_fct.rsplit(' ', 1)[0])
-                        whr_fct += ' GROUP BY courses.course_id HAVING COUNT(*) > 1 '
-    whr_fct = (whr_fct.rsplit(' ', 1)[0]) +";"
-    return whr_fct
+def on_func(args_from_ui, input_options):
+    'Creates the ON Command'
+    query = set()
+
+    for input_ in args_from_ui.keys():
+        query.update(input_options[input_]["ON"])
+    if query:
+        query = ["ON " + " AND ".join(query)]
+    else:
+        query = []
+
+    return query
+
+def where_func(args_from_ui, input_options): 
+
+    query = []
+    tupleq = tuple()
+    for input_, value in args_from_ui.items():
+        if isinstance(value, list):
+            subquery = []
+            for instance in value:
+                subquery.append(input_options[input_]["WHERE"])
+                tupleq += (instance,)
+            query += ["(" + " OR ".join(subquery) + ")"]
+        else: 
+            query.append(input_options[input_]["WHERE"])
+            tupleq += (value, )
+    if query:
+        query = ["WHERE " +  " AND ".join(query)]
+
+    return query, tupleq
+
+def groupby_func(args_copy):
+    query = []
+    tupleq = tuple()
+    if args_copy.get("terms"):
+        num_terms = len(args_copy["terms"])
+        if num_terms > 1:
+            query = ["GROUP BY courses.course_id HAVING COUNT(*) >= ?"]
+            tupleq = (num_terms,)
+    
+    return query, tupleq
+
 
 
 
